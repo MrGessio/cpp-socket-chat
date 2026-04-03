@@ -7,23 +7,41 @@
 #include <vector>
 #include <mutex>
 #include <algorithm>
+#include <map>
 
 constexpr int PORT = 50000;
 std::vector<int> clients;
 std::mutex clientsMutex;
+std::map<int, std::string> nicknames;
 
-void broadcast(const char* message, int senderSocket) {
+void broadcast(const std::string& message, int senderSocket) {
     std::lock_guard<std::mutex> lock(clientsMutex);
 
     for (int client : clients) {
         if (client != senderSocket) {
-            send(client, message, strlen(message), 0);
+            send(client, message.c_str(), message.size(), 0);
         }
     }
 }
 
 void handleClient(int clientSocket) {
     char buffer[1024];
+
+    memset(buffer, 0, sizeof(buffer));
+    int bytes = recv(clientSocket, buffer, 1024, 0);
+    if (bytes <= 0) {
+        close(clientSocket);
+        return;
+    }
+    std::string nick(buffer);
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        nicknames[clientSocket] = nick;
+    }
+
+    std::string joinMsg = "[" + nick + "] joined the chat";
+    broadcast(joinMsg, clientSocket);
+    std::cout << joinMsg << std::endl;
     
     while (true) {
         memset(buffer, 0, sizeof(buffer));
@@ -34,15 +52,21 @@ void handleClient(int clientSocket) {
             break;
         }
 
-        std::cout << "Message: " << buffer << std::endl;
-        broadcast(buffer, clientSocket);
+        std::string msg = "[" + nick + "]: "+ buffer;
+        broadcast(msg, clientSocket);
+        std::cout << msg << std::endl;
     }
 
     {
         std::lock_guard<std::mutex> lock(clientsMutex);
         clients.erase(std::remove(clients.begin(), clients.end(), clientSocket), clients.end());
+        nicknames.erase(clientSocket);
     }
 
+    std::string leaveMsg = "[" + nick + "] left the chat";
+    broadcast(leaveMsg, clientSocket);
+    std::cout << leaveMsg << std::endl;
+    
     close(clientSocket);
 }
 

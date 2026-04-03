@@ -47,6 +47,12 @@ int main() {
 
     std::cout << "Connected to server\n";
 
+    std::cout << "Enter your nickname: ";
+    std::string nick;
+    std::getline(std::cin, nick);
+
+    send(clientSocket, nick.c_str(), nick.size(), 0);
+
     std::thread receiver(receiveMessages, clientSocket);
     std::string message;
 
