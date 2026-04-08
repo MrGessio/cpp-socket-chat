@@ -24,6 +24,15 @@ void broadcast(const std::string& message, int senderSocket) {
     }
 }
 
+int getClientByNick(const std::string& nick) {
+    for (const auto& pair : nicknames) {
+        if (pair.second == nick) {
+            return pair.first;
+        }
+    }
+    return -1;
+}
+
 void handleClient(int clientSocket) {
     char buffer[1024];
 
@@ -69,6 +78,37 @@ void handleClient(int clientSocket) {
 
             broadcast("[SERVER]: " + info, clientSocket);
             std::cout << info << std::endl;
+            continue;
+        }
+
+        if (input.rfind("/msg ", 0) == 0) {
+            std::string rest = input.substr(5);
+
+            size_t space = rest.find(' ');
+            if (space == std::string::npos) continue;
+
+            std::string targetNick = rest.substr(0, space);
+            std::string msg = rest.substr(space + 1);
+
+            int targetSocket;
+
+            {
+                std::lock_guard<std::mutex> lock(clientsMutex);
+                targetSocket = getClientByNick(targetNick);
+            }
+
+            if (targetSocket == -1) {
+                std::string error = "[SERVER]: User not found";
+                send(clientSocket, error.c_str(), error.size(), 0);
+                continue;
+            }
+
+            std::string fullMsg = "[PM from " + nick + "]: " + msg;
+            send(targetSocket, fullMsg.c_str(), fullMsg.size(), 0);
+
+            std::string selfMsg = "[PM to " + targetNick + "]: " + msg;
+            send(clientSocket, selfMsg.c_str(), selfMsg.size(), 0);
+
             continue;
         }
 
