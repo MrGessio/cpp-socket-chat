@@ -33,7 +33,8 @@ void handleClient(int clientSocket) {
         close(clientSocket);
         return;
     }
-    std::string nick(buffer);
+    std::string nick(buffer, bytes);
+    nick.erase(std::remove(nick.begin(), nick.end(), '\n'), nick.end());
     {
         std::lock_guard<std::mutex> lock(clientsMutex);
         nicknames[clientSocket] = nick;
@@ -52,7 +53,42 @@ void handleClient(int clientSocket) {
             break;
         }
 
-        std::string msg = "[" + nick + "]: "+ buffer;
+        std::string input(buffer, bytes);
+        input.erase(std::remove(input.begin(), input.end(), '\n'), input.end());
+
+        if (input.rfind("/nick ", 0) == 0) {
+            std::string newNick = input.substr(6);
+
+            {
+            std::lock_guard<std::mutex> lock(clientsMutex);
+            nicknames[clientSocket] = newNick;
+            }
+
+            std::string info = nick + " changed nick to " + newNick;
+            nick = newNick;
+
+            broadcast("[SERVER]: " + info, clientSocket);
+            std::cout << info << std::endl;
+            continue;
+        }
+
+        if (input == "/list") {
+            std::lock_guard<std::mutex> lock(clientsMutex);
+
+            std::string list = "[SERVER]: Users online: ";
+            for (auto it = nicknames.begin(); it != nicknames.end(); ++it) {
+                list += it->second;
+
+                if (std::next(it) != nicknames.end()) {
+                    list += ", ";
+                }
+            }
+
+            send(clientSocket, list.c_str(), list.size(), 0);
+            continue;
+        }
+
+        std::string msg = "[" + nick + "]: "+ input;
         broadcast(msg, clientSocket);
         std::cout << msg << std::endl;
     }

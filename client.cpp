@@ -5,10 +5,11 @@
 #include <unistd.h>
 #include <cstring>
 #include <thread>
+#include <algorithm>
 
 constexpr int PORT = 50000;
 
-void receiveMessages(int clientSocket) {
+void receiveMessages(int clientSocket, std::string* myNick) {
     char buffer[1024];
 
     while (true) {
@@ -19,7 +20,16 @@ void receiveMessages(int clientSocket) {
             std::cout << "Disconnected from server\n";
             break;
         }
-        std::cout << buffer << std::endl;
+
+        std::string message(buffer);
+        std::string prefix = "[" + *myNick + "]:";
+
+        if (message.rfind(prefix, 0) == 0) {
+            std::cout << "[me]: " << message.substr(prefix.size()) << std::endl;
+        } 
+        else {
+            std::cout << message << std::endl;
+        }
     }
 }
 
@@ -50,21 +60,31 @@ int main() {
     std::cout << "Enter your nickname: ";
     std::string nick;
     std::getline(std::cin, nick);
+    nick.erase(std::remove(nick.begin(), nick.end(), '\n'), nick.end());
 
     send(clientSocket, nick.c_str(), nick.size(), 0);
 
-    std::thread receiver(receiveMessages, clientSocket);
+    std::thread receiver(receiveMessages, clientSocket, &nick);
     std::string message;
 
     while(true) {
-
+        std::cout << "me: ";
         std::getline(std::cin, message);
+        message.erase(std::remove(message.begin(), message.end(), '\n'), message.end());
 
         if(message == "exit") {
             break;
         }
 
+        if (message.rfind("/nick ", 0) == 0) {
+        nick = message.substr(6);
+        }
+
         send(clientSocket, message.c_str(), message.size(), 0);
+
+        if (message.rfind("/", 0) != 0) {
+        std::cout << "[me]: " << message << std::endl;
+        }
     }
 
     close(clientSocket);
