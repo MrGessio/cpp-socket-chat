@@ -9,16 +9,16 @@ Features:
 
 
 Build:
-      ```
-      g++ server.cpp -o server -pthread      
-      g++ client.cpp -o client -pthread
-      ```
+```
+g++ server.cpp -o server -pthread
+g++ client.cpp -o client -pthread
+```
       
 Run:
-    ```
-      ./server
-      ./client
-    ```
+```      
+./server
+./client
+```
 
 Commands:
   ```
