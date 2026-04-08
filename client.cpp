@@ -68,7 +68,7 @@ int main() {
     std::string message;
 
     while(true) {
-        std::cout << "me: ";
+        //std::cout << "me: ";
         std::getline(std::cin, message);
         message.erase(std::remove(message.begin(), message.end(), '\n'), message.end());
 
